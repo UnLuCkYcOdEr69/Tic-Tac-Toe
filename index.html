@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Futuristic Tic-Tac-Toe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #2c3e50, #4ca1af);
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-weight: 500;
+      color: #00ffe0;
+      z-index: 2;
+      text-shadow: 0 0 6px #00ffe0, 0 0 12px #00ffe0;
+      animation: softCyanGlow 4s ease-in-out infinite;
+    }
+
+
+
+    @keyframes softCyanGlow {
+      0% {
+        text-shadow: 0 0 6px #00ffe0, 0 0 12px #00ffe0;
+      }
+      50% {
+        text-shadow: 0 0 12px #00ffe0, 0 0 24px #00ffe0;
+      }
+      100% {
+        text-shadow: 0 0 6px #00ffe0, 0 0 12px #00ffe0;
+      }
+    }
+
+
+
+
+    #controls {
+      margin-bottom: 20px;
+      z-index: 2;
+    }
+
+    #controls button {
+      background: #1a1a1a;
+      border: 2px solid #00ffe0;
+      color: #00ffe0;
+      padding: 10px 20px;
+      margin: 0 5px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: 0.3s ease;
+    }
+
+    #controls button:hover {
+      background: #00ffe0;
+      color: #0f0f0f;
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 10px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .cell {
+      background: #1a1a1a;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .cell.X { color: #00ffe0; }
+    .cell.O { color: #ff007f; }
+
+    #win-line {
+      position: absolute;
+      background: #00ffe0;
+      height: 6px;
+      width: 0;
+      top: 0;
+      left: 0;
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform 0.5s ease, width 0.5s ease;
+      z-index: 5;
+      border-radius: 3px;
+      box-shadow: 0 0 10px #00ffe0, 0 0 20px #00ffe0;
+      pointer-events: none;
+    }
+
+    #splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .confetti {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background-color: #00ffe0;
+      border-radius: 50%;
+      animation: confetti-burst 3.5s ease-out forwards;
+      z-index: 0;
+      opacity: 0.8;
+    }
+
+    @keyframes confetti-burst {
+      0% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(var(--x), var(--y)) scale(0.7) rotate(720deg);
+      }
+    }
+
+    #alertBox {
+      margin-top: 20px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.4s, transform 0.4s;
+      color: #00ffe0;
+      z-index: 2;
+    }
+
+    #alertBox.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 600px) {
+      #game-board {
+        grid-template-columns: repeat(3, 70px);
+        grid-template-rows: repeat(3, 70px);
+        gap: 8px;
+      }
+      .cell {
+        font-size: 28px;
+      }
+      #controls button {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic-Tac-Toe</h1>
+  <div id="controls">
+    <button onclick="setMode('computer')">Play vs Computer</button>
+    <button onclick="setMode('2player')">2 Player Mode</button>
+    <button onclick="resetGame()">Reset</button>
+  </div>
+  <div id="game-board">
+    <div id="win-line"></div>
+  </div>
+  <div id="alertBox"></div>
+  <div id="splash"></div>
+  <audio id="confettiSound" src="TicTacToeAudio.mp3"></audio>
+  <script>
+    let board = Array(9).fill(null);
+    let currentPlayer = 'X';
+    let mode = 'computer';
+    let gameActive = true;
+    const boardEl = document.getElementById('game-board');
+    const alertBox = document.getElementById('alertBox');
+    const winLine = document.getElementById('win-line');
+    const splash = document.getElementById('splash');
+    const confettiSound = document.getElementById('confettiSound');
+
+    const winPatterns = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6]
+    ];
+
+    function setMode(selectedMode) {
+      mode = selectedMode;
+      resetGame();
+      showAlert(`Mode: ${mode === 'computer' ? 'Computer' : 'Two Player'}`);
+    }
+
+    function resetGame() {
+      board = Array(9).fill(null);
+      currentPlayer = 'X';
+      gameActive = true;
+      winLine.style.transform = 'scaleX(0)';
+      splash.innerHTML = '';
+      renderBoard();
+    }
+
+    function renderBoard() {
+      boardEl.querySelectorAll('.cell').forEach(e => e.remove());
+      board.forEach((cell, i) => {
+        const div = document.createElement('div');
+        div.className = 'cell';
+        if (cell) div.classList.add(cell);
+        div.textContent = cell ? cell : '';
+        div.addEventListener('click', () => handleClick(i));
+        boardEl.appendChild(div);
+      });
+    }
+
+    function handleClick(i) {
+      if (!gameActive || board[i]) return;
+      board[i] = currentPlayer;
+      renderBoard();
+      const win = checkWin(currentPlayer);
+      if (win) {
+        gameActive = false;
+        showAlert(`${currentPlayer} wins!`);
+        setTimeout(() => {
+          drawWinLine(win);
+          setTimeout(showSplash, 600);
+        }, 200);
+        return;
+      }
+      if (!board.includes(null)) {
+        showAlert("It's a draw!");
+        gameActive = false;
+        return;
+      }
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      if (mode === 'computer' && currentPlayer === 'O') {
+        setTimeout(makeComputerMove, 300);
+      }
+    }
+
+    function makeComputerMove() {
+      const empty = board.map((v, i) => v === null ? i : null).filter(v => v !== null);
+      if (empty.length === 0) return;
+      const move = empty[Math.floor(Math.random() * empty.length)];
+      board[move] = currentPlayer;
+      renderBoard();
+      const win = checkWin(currentPlayer);
+      if (win) {
+        gameActive = false;
+        showAlert(`${currentPlayer} wins!`);
+        setTimeout(() => {
+          drawWinLine(win);
+          setTimeout(showSplash, 600);
+        }, 200);
+        return;
+      }
+      if (!board.includes(null)) {
+        showAlert("It's a draw!");
+        gameActive = false;
+        return;
+      }
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    }
+
+    function checkWin(player) {
+      for (let pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (board[a] === player && board[b] === player && board[c] === player) {
+          return pattern;
+        }
+      }
+      return null;
+    }
+
+    function drawWinLine(pattern) {
+      const cells = document.querySelectorAll('.cell');
+      const [a, , c] = pattern;
+      const rectA = cells[a].getBoundingClientRect();
+      const rectC = cells[c].getBoundingClientRect();
+      const containerRect = boardEl.getBoundingClientRect();
+
+      const x1 = rectA.left + rectA.width / 2 - containerRect.left;
+      const y1 = rectA.top + rectA.height / 2 - containerRect.top;
+      const x2 = rectC.left + rectC.width / 2 - containerRect.left;
+      const y2 = rectC.top + rectC.height / 2 - containerRect.top;
+
+      const deltaX = x2 - x1;
+      const deltaY = y2 - y1;
+      const length = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+      const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+      winLine.style.width = `${length}px`;
+      winLine.style.top = `${y1}px`;
+      winLine.style.left = `${x1}px`;
+      winLine.style.transform = `rotate(${angle}deg) scaleX(1)`;
+    }
+
+    function showSplash() {
+      splash.innerHTML = '';
+      const count = 100;
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'confetti';
+        dot.style.left = `${Math.random() * 100}vw`;
+        dot.style.top = `${Math.random() * 100}vh`;
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = 300 + Math.random() * 300;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+        dot.style.setProperty('--x', `${x}px`);
+        dot.style.setProperty('--y', `${y}px`);
+        dot.style.backgroundColor = Math.random() > 0.5 ? '#00ffe0' : '#ff007f';
+        splash.appendChild(dot);
+      }
+      confettiSound.currentTime = 0;
+      confettiSound.play();
+      if (window.matchMedia('(max-width: 600px)').matches && navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+    }
+
+    function showAlert(message) {
+      alertBox.textContent = message;
+      alertBox.classList.add('show');
+      setTimeout(() => alertBox.classList.remove('show'), 3000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderBoard();
+      setTimeout(() => showAlert("Mode: Computer"), 500);
+    });
+  </script>
+</body>
+</html>
