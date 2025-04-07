@@ -259,10 +259,8 @@
     }
 
     function makeComputerMove() {
-      const empty = board.map((v, i) => v === null ? i : null).filter(v => v !== null);
-      if (empty.length === 0) return;
-      const move = empty[Math.floor(Math.random() * empty.length)];
-      board[move] = currentPlayer;
+      const bestMove = getBestMove();
+      board[bestMove] = currentPlayer;
       renderBoard();
       const win = checkWin(currentPlayer);
       if (win) {
@@ -282,6 +280,7 @@
       currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
     }
 
+
     function checkWin(player) {
       for (let pattern of winPatterns) {
         const [a, b, c] = pattern;
@@ -291,6 +290,53 @@
       }
       return null;
     }
+
+    function getBestMove() {
+      let bestScore = -Infinity;
+      let move;
+      board.forEach((cell, index) => {
+        if (cell === null) {
+          board[index] = 'O';
+          let score = minimax(board, 0, false);
+          board[index] = null;
+          if (score > bestScore) {
+            bestScore = score;
+            move = index;
+          }
+        }
+      });
+      return move;
+    }
+
+    function minimax(boardState, depth, isMaximizing) {
+      const winner = checkWin('O') ? 'O' : checkWin('X') ? 'X' : null;
+      if (winner === 'O') return 10 - depth;
+      if (winner === 'X') return depth - 10;
+      if (!boardState.includes(null)) return 0;
+
+      if (isMaximizing) {
+        let best = -Infinity;
+        boardState.forEach((cell, i) => {
+          if (cell === null) {
+            boardState[i] = 'O';
+            best = Math.max(best, minimax(boardState, depth + 1, false));
+            boardState[i] = null;
+          }
+        });
+        return best;
+      } else {
+        let best = Infinity;
+        boardState.forEach((cell, i) => {
+          if (cell === null) {
+            boardState[i] = 'X';
+            best = Math.min(best, minimax(boardState, depth + 1, true));
+            boardState[i] = null;
+          }
+        });
+        return best;
+      }
+    }
+
 
     function drawWinLine(pattern) {
       const cells = document.querySelectorAll('.cell');
