@@ -34,26 +34,49 @@
       animation: softCyanGlow 4s ease-in-out infinite;
     }
 
-
-
     @keyframes softCyanGlow {
-      0% {
-        text-shadow: 0 0 6px #00ffe0, 0 0 12px #00ffe0;
-      }
-      50% {
-        text-shadow: 0 0 12px #00ffe0, 0 0 24px #00ffe0;
-      }
-      100% {
-        text-shadow: 0 0 6px #00ffe0, 0 0 12px #00ffe0;
-      }
+      0% { text-shadow: 0 0 6px #00ffe0, 0 0 12px #00ffe0; }
+      50% { text-shadow: 0 0 12px #00ffe0, 0 0 24px #00ffe0; }
+      100% { text-shadow: 0 0 6px #00ffe0, 0 0 12px #00ffe0; }
     }
 
+    #scoreboard {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      font-size: 20px;
+      color: #ffffff;
+      text-shadow: 0 0 6px #00ffe0;
+      z-index: 2;
+    }
 
+    #difficulty {
+      margin-bottom: 15px;
+      color: #00ffe0;
+      z-index: 2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      transition: opacity 0.3s ease;
+    }
 
+    #difficulty select {
+      background: #1a1a1a;
+      color: #00ffe0;
+      border: 2px solid #00ffe0;
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
 
     #controls {
-      margin-bottom: 20px;
-      z-index: 2;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+      margin-bottom: 20px; /* space between buttons and grid */
     }
 
     #controls button {
@@ -136,14 +159,8 @@
     }
 
     @keyframes confetti-burst {
-      0% {
-        opacity: 1;
-        transform: translate(0, 0) scale(1) rotate(0deg);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(var(--x), var(--y)) scale(0.7) rotate(720deg);
-      }
+      0% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+      100% { opacity: 0; transform: translate(var(--x), var(--y)) scale(0.7) rotate(720deg); }
     }
 
     #alertBox {
@@ -178,22 +195,47 @@
 </head>
 <body>
   <h1>Tic-Tac-Toe</h1>
+
   <div id="controls">
     <button onclick="setMode('computer')">Play vs Computer</button>
     <button onclick="setMode('2player')">2 Player Mode</button>
     <button onclick="resetGame()">Reset</button>
   </div>
+
+  <div id="difficulty">
+    <label>Difficulty:</label>
+    <select id="difficultySelect" onchange="setDifficulty(this.value)">
+      <option value="hard">Hard</option>
+      <option value="medium">Medium</option>
+      <option value="easy">Easy</option>
+    </select>
+  </div>
+
+  <div id="scoreboard">
+    <div id="labelX">Player X: <span id="scoreX">0</span></div>
+    <div id="labelO">Player O: <span id="scoreO">0</span></div>
+  </div>
+
   <div id="game-board">
     <div id="win-line"></div>
   </div>
+
   <div id="alertBox"></div>
   <div id="splash"></div>
   <audio id="confettiSound" src="TicTacToeAudio.mp3"></audio>
+
+
   <script>
     let board = Array(9).fill(null);
     let currentPlayer = 'X';
     let mode = 'computer';
     let gameActive = true;
+    let scoreX = 0;
+    let scoreO = 0;
+    let difficulty = 'hard';
+    let awaitingPlayerMove = false;
+
+
     const boardEl = document.getElementById('game-board');
     const alertBox = document.getElementById('alertBox');
     const winLine = document.getElementById('win-line');
@@ -208,18 +250,48 @@
 
     function setMode(selectedMode) {
       mode = selectedMode;
-      resetGame();
+      currentPlayer = mode === 'computer' ? 'O' : 'X';
+      scoreX = 0;
+      scoreO = 0;
+      updateScoreboardLabels();
+      updateScoreboard();
+
+      // Show or hide difficulty dropdown
+      const difficultyDiv = document.getElementById('difficulty');
+      difficultyDiv.style.display = mode === '2player' ? 'none' : 'flex';
+
+      resetGame(); // moved below display update
+
       showAlert(`Mode: ${mode === 'computer' ? 'Computer' : 'Two Player'}`);
+    }
+
+
+    function setDifficulty(level) {
+      difficulty = level;
+      showAlert(`Difficulty: ${level.charAt(0).toUpperCase() + level.slice(1)}`);
     }
 
     function resetGame() {
       board = Array(9).fill(null);
-      currentPlayer = 'X';
+      if (mode === 'computer') {
+        currentPlayer = 'O';
+        awaitingPlayerMove = false; // player should wait
+      } else {
+        currentPlayer = 'X';
+        awaitingPlayerMove = true; // 2-player mode, allow player move
+      }
+
       gameActive = true;
       winLine.style.transform = 'scaleX(0)';
       splash.innerHTML = '';
       renderBoard();
+
+      if (mode === 'computer' && currentPlayer === 'O') {
+        setTimeout(makeComputerMove, 500);
+      }
     }
+
+
 
     function renderBoard() {
       boardEl.querySelectorAll('.cell').forEach(e => e.remove());
@@ -234,13 +306,17 @@
     }
 
     function handleClick(i) {
-      if (!gameActive || board[i]) return;
+      if (!gameActive || board[i] || !awaitingPlayerMove) return;
+
       board[i] = currentPlayer;
       renderBoard();
       const win = checkWin(currentPlayer);
       if (win) {
         gameActive = false;
         showAlert(`${currentPlayer} wins!`);
+        if (currentPlayer === 'X') scoreX++;
+        else scoreO++;
+        updateScoreboard();
         setTimeout(() => {
           drawWinLine(win);
           setTimeout(showSplash, 600);
@@ -252,20 +328,37 @@
         gameActive = false;
         return;
       }
+
       currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
       if (mode === 'computer' && currentPlayer === 'O') {
+        awaitingPlayerMove = false;
         setTimeout(makeComputerMove, 300);
       }
     }
 
+
+
     function makeComputerMove() {
-      const bestMove = getBestMove();
+      let bestMove;
+      const isFirstMove = board.filter(cell => cell !== null).length === 0;
+
+      if (difficulty === 'hard' && isFirstMove) {
+        // Pick a random strategic start position
+        const preferredStartMoves = [0, 2, 4, 6, 8]; // corners and center
+        const available = preferredStartMoves.filter(i => board[i] === null);
+        bestMove = available[Math.floor(Math.random() * available.length)];
+      } else {
+        bestMove = getBestMove(); // minimax for rest of the game
+      }
+
       board[bestMove] = currentPlayer;
       renderBoard();
       const win = checkWin(currentPlayer);
       if (win) {
         gameActive = false;
         showAlert(`${currentPlayer} wins!`);
+        scoreO++;
+        updateScoreboard();
         setTimeout(() => {
           drawWinLine(win);
           setTimeout(showSplash, 600);
@@ -277,21 +370,25 @@
         gameActive = false;
         return;
       }
-      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+
+      currentPlayer = 'X';
+      awaitingPlayerMove = true; // allow user to play
     }
 
-
-    function checkWin(player) {
-      for (let pattern of winPatterns) {
-        const [a, b, c] = pattern;
-        if (board[a] === player && board[b] === player && board[c] === player) {
-          return pattern;
-        }
-      }
-      return null;
-    }
 
     function getBestMove() {
+      if (difficulty === 'easy') {
+        const empty = board.map((val, i) => val === null ? i : null).filter(v => v !== null);
+        return empty[Math.floor(Math.random() * empty.length)];
+      }
+
+      if (difficulty === 'medium') {
+        if (Math.random() < 0.5) {
+          const empty = board.map((val, i) => val === null ? i : null).filter(v => v !== null);
+          return empty[Math.floor(Math.random() * empty.length)];
+        }
+      }
+
       let bestScore = -Infinity;
       let move;
       board.forEach((cell, index) => {
@@ -337,6 +434,15 @@
       }
     }
 
+    function checkWin(player) {
+      for (let pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (board[a] === player && board[b] === player && board[c] === player) {
+          return pattern;
+        }
+      }
+      return null;
+    }
 
     function drawWinLine(pattern) {
       const cells = document.querySelectorAll('.cell');
@@ -391,10 +497,25 @@
       setTimeout(() => alertBox.classList.remove('show'), 3000);
     }
 
+    function updateScoreboard() {
+      document.getElementById('scoreX').textContent = scoreX;
+      document.getElementById('scoreO').textContent = scoreO;
+    }
+
+    function updateScoreboardLabels() {
+      document.getElementById('labelX').innerHTML =
+        mode === 'computer' ? 'Player (X): <span id="scoreX">' + scoreX + '</span>' : 'Player X: <span id="scoreX">' + scoreX + '</span>';
+      document.getElementById('labelO').innerHTML =
+        mode === 'computer' ? 'Computer (O): <span id="scoreO">' + scoreO + '</span>' : 'Player O: <span id="scoreO">' + scoreO + '</span>';
+    }
+
+
     document.addEventListener('DOMContentLoaded', () => {
       renderBoard();
-      setTimeout(() => showAlert("Mode: Computer"), 500);
+      updateScoreboard();
+      setMode('computer'); // ensure mode is set properly
     });
+
   </script>
 </body>
 </html>
