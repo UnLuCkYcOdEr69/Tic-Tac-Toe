@@ -234,6 +234,8 @@
     let scoreO = 0;
     let difficulty = 'hard';
     let awaitingPlayerMove = false;
+    let twoPlayerStartsWithX = true; // tracks who starts in 2-player mode
+
 
 
     const boardEl = document.getElementById('game-board');
@@ -248,22 +250,84 @@
       [0,4,8], [2,4,6]
     ];
 
+    let playerStartsFirst = false; // Define this at top level if not already
+
+    function resetGame() {
+      board = Array(9).fill(null);
+      gameActive = true;
+      winLine.style.transform = 'scaleX(0)';
+      splash.innerHTML = '';
+      renderBoard();
+
+      if (mode === 'computer') {
+        if (playerStartsFirst) {
+          currentPlayer = 'X';
+          awaitingPlayerMove = true;
+          showAlert("🔄 Now it's Player's turn!");
+        } else {
+          currentPlayer = 'O';
+          awaitingPlayerMove = false;
+          showAlert("🤖 Now it's Computer's turn!");
+          setTimeout(() => {
+            makeComputerMove();
+            playerStartsFirst = true; // next time, player starts
+          }, 500);
+          return;
+        }
+        playerStartsFirst = false; // Set for next round
+      } else {
+        // 2-player mode
+        currentPlayer = twoPlayerStartsWithX ? 'X' : 'O';
+        showAlert(`🔄 Now it's Player ${currentPlayer}'s turn!`);
+        awaitingPlayerMove = true;
+        twoPlayerStartsWithX = !twoPlayerStartsWithX; // Alternate starter for next round
+      }
+    }
+
     function setMode(selectedMode) {
       mode = selectedMode;
-      currentPlayer = mode === 'computer' ? 'O' : 'X';
       scoreX = 0;
       scoreO = 0;
       updateScoreboardLabels();
       updateScoreboard();
 
-      // Show or hide difficulty dropdown
       const difficultyDiv = document.getElementById('difficulty');
       difficultyDiv.style.display = mode === '2player' ? 'none' : 'flex';
 
-      resetGame(); // moved below display update
-
       showAlert(`Mode: ${mode === 'computer' ? 'Computer' : 'Two Player'}`);
+
+      // Reset the board and UI
+      board = Array(9).fill(null);
+      gameActive = true;
+      winLine.style.transform = 'scaleX(0)';
+      splash.innerHTML = '';
+      renderBoard();
+
+      if (mode === 'computer') {
+        // Alternate who starts first
+        if (playerStartsFirst) {
+          currentPlayer = 'X'; // Player
+          awaitingPlayerMove = true;
+          showAlert("🔄 Now it's Player's turn!");
+        } else {
+          currentPlayer = 'O'; // Computer
+          awaitingPlayerMove = false;
+          showAlert("🤖 Now it's Computer's turn!");
+          setTimeout(() => {
+            makeComputerMove();
+          }, 500);
+        }
+        // Flip for next round
+        playerStartsFirst = !playerStartsFirst;
+      } else {
+        // 2-player mode: alternate first turn
+        currentPlayer = playerStartsFirst ? 'X' : 'O';
+        showAlert(`🔄 Now it's ${currentPlayer === 'X' ? 'Player X' : 'Player O'}'s turn!`);
+        awaitingPlayerMove = true;
+        playerStartsFirst = !playerStartsFirst;
+      }
     }
+
 
 
     function setDifficulty(level) {
@@ -271,28 +335,7 @@
       showAlert(`Difficulty: ${level.charAt(0).toUpperCase() + level.slice(1)}`);
     }
 
-    function resetGame() {
-      board = Array(9).fill(null);
-      if (mode === 'computer') {
-        currentPlayer = 'O';
-        awaitingPlayerMove = false; // player should wait
-      } else {
-        currentPlayer = 'X';
-        awaitingPlayerMove = true; // 2-player mode, allow player move
-      }
-
-      gameActive = true;
-      winLine.style.transform = 'scaleX(0)';
-      splash.innerHTML = '';
-      renderBoard();
-
-      if (mode === 'computer' && currentPlayer === 'O') {
-        setTimeout(makeComputerMove, 500);
-      }
-    }
-
-
-
+    
     function renderBoard() {
       boardEl.querySelectorAll('.cell').forEach(e => e.remove());
       board.forEach((cell, i) => {
@@ -511,10 +554,24 @@
 
 
     document.addEventListener('DOMContentLoaded', () => {
+      playerStartsFirst = false; // First game: Computer starts
       renderBoard();
       updateScoreboard();
-      setMode('computer'); // ensure mode is set properly
+      setMode('computer');
+      
+      // 👇 Force first move if computer starts
+      if (!playerStartsFirst && mode === 'computer') {
+        currentPlayer = 'O';
+        awaitingPlayerMove = false;
+        showAlert("🤖 Now it's Computer's turn!");
+        setTimeout(() => {
+          makeComputerMove();
+          playerStartsFirst = true;
+        }, 500);
+      }
     });
+
+
 
   </script>
 </body>
